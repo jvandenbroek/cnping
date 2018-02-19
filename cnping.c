@@ -249,7 +249,7 @@ void DrawFrame( void )
 	char stbuf[1024];
 	char * sptr = &stbuf[0];
 
-	sptr += sprintf( sptr, 
+	sptr += sprintf( sptr,
 		"Last: %5.2f ms\n"
 		"Min : %5.2f ms\n"
 		"Max : %5.2f ms\n"
@@ -300,7 +300,7 @@ INT_PTR CALLBACK TextEntry( HWND   hwndDlg, UINT   uMsg, WPARAM wParam, LPARAM l
 				char Period[1024]; GetDlgItemText(hwndDlg, 4, Period, sizeof(Period));
 				char Extra[1024]; GetDlgItemText(hwndDlg, 5, Extra, sizeof(Extra));
 				char Scaling[1024]; GetDlgItemText(hwndDlg, 6, Scaling, sizeof(Scaling));
-			
+
 				if( strlen( Address ) )
 				{
 					glargc = 2;
@@ -372,7 +372,7 @@ int main( int argc, const char ** argv )
 	ExtraPingSize = 0;
 	title[0] = 0;
 	GuiYScaleFactor = 0;
-  
+
 	//We need to process all the unmarked parameters.
 	int argcunmarked = 1;
 	int displayhelp = 0;
@@ -444,7 +444,7 @@ int main( int argc, const char ** argv )
 		#endif
 		return -1;
 	}
- 
+
 	CNFGSetup( title, 320, 155 );
 
 	if( memcmp( pinghost, "http://", 7 ) == 0 )

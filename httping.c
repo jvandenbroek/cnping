@@ -8,14 +8,14 @@
 
 #ifdef WIN32
 	#include <winsock2.h>
-	#ifndef MSG_NOSIGNAL 
+	#ifndef MSG_NOSIGNAL
 	#define MSG_NOSIGNAL 0
 	#endif
 
 #else
 	#include <sys/socket.h>
 	#include <netinet/in.h>
-	#include <netdb.h> 
+	#include <netdb.h>
 #endif
 
 #include "os_generic.h"
@@ -36,6 +36,7 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 	int httpsock;
 	int addylen = strlen(addy);
 	char hostname[addylen+1];
+	memcpy( hostname, addy, addylen + 1 );
 	char * eportmarker = strchr( hostname, ':' );
 	char * eurl = strchr( hostname, '/' );
 
@@ -43,8 +44,6 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 
 	(*seqnoptr) ++;
 	HTTPingCallbackStart( *seqnoptr );
-
-	memcpy( hostname, addy, addylen + 1 );
 
 	if( eportmarker )
 	{
@@ -70,20 +69,20 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 	*getting_host_by_name = 0;
 	if (server == NULL) {
 		ERRM("ERROR, no such host as %s\n", hostname);
-		goto fail;
+		return;
 	}
 
 	/* build the server's Internet address */
 	bzero((char *) &serveraddr, sizeof(serveraddr));
 	serveraddr.sin_family = AF_INET;
-	memcpy((char *)server->h_addr, (char *)&serveraddr.sin_addr.s_addr, server->h_length);
+	memcpy((char *)&serveraddr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
 	serveraddr.sin_port = htons(portno);
 
 	/* connect: create a connection with the server */
-	if (connect(httpsock, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0) 
+	if (connect(httpsock, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
 	{
 		ERRM( "%s: ERROR connecting\n", hostname );
-		goto fail;
+		return;
 	}
 
 
@@ -91,7 +90,7 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 	{
 		char buf[8192];
 
-		int n = sprintf( buf, "HEAD %s HTTP/1.1\r\nConnection: keep-alive\r\n\r\n", eurl?eurl:"/favicon.ico" );
+		int n = sprintf( buf, "HEAD %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n", eurl?eurl:"/favicon.ico", hostname );
 		send( httpsock, buf, n, MSG_NOSIGNAL );
 		double starttime = *timeouttime = OGGetAbsoluteTime();
 
@@ -127,8 +126,6 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 
 
 	}
-fail:
-	return;
 }
 
 
@@ -201,7 +198,6 @@ int StartHTTPing( const char * addy, double minperiod )
 		exit( -2 );
 	}
 #endif
-
 	struct HTTPPingLaunch *hpl = malloc( sizeof( struct HTTPPingLaunch ) );
 	hpl->addy = addy;
 	hpl->minperiod = minperiod;
