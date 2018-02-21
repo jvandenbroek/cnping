@@ -208,8 +208,9 @@ void CNFGSetup( const char * WindowName, int w, int h )
 #endif
 }
 
-void CNFGHandleInput()
+uint8_t CNFGHandleInput()
 {
+	if ( !XPending( CNFGDisplay )) return 0;
 	static int ButtonsDown;
 	XEvent report;
 
@@ -241,7 +242,6 @@ void CNFGHandleInput()
 		case ButtonPress:
 			HandleButton( report.xbutton.x, report.xbutton.y, report.xbutton.button, bKeyDirection );
 			ButtonsDown = (ButtonsDown & (~(1<<report.xbutton.button))) | ( bKeyDirection << report.xbutton.button );
-
 			//Intentionall fall through -- we want to send a motion in event of a button as well.
 		case MotionNotify:
 			HandleMotion( report.xmotion.x, report.xmotion.y, ButtonsDown>>1 );
@@ -255,6 +255,7 @@ void CNFGHandleInput()
 			break;
 		}
 	}
+	return 1;
 }
 
 

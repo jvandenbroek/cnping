@@ -32,6 +32,7 @@ float GuiYScaleFactor;
 int GuiYscaleFactorIsConstant;
 
 uint8_t pattern[8];
+static uint8_t scale = 2;
 
 
 #define PINGCYCLEWIDTH 8192
@@ -110,9 +111,6 @@ void * PingSend( void * r )
 	exit( -1 );
 }
 
-
-
-
 void HandleKey( int keycode, int bDown )
 {
 	switch( keycode )
@@ -120,10 +118,30 @@ void HandleKey( int keycode, int bDown )
 		case 'q':
 			exit(0);
 			break;
-
+		case 45: // -
+		case 65453:
+			if (bDown && scale > 2) scale--;
+			break;
+		case 61: // +
+		case 65451:
+			if (bDown && scale < 10) scale++;
+			break;
 	}
 }
-void HandleButton( int x, int y, int button, int bDown ){}
+
+void HandleButton( int x, int y, int button, int bDown )
+{
+	switch ( button )
+	{
+		case 5: // wheel down
+			if (bDown && scale > 2) scale--;
+			break;
+		case 4: // wheel up
+			if (bDown && scale < 10) scale++;
+			break;
+	}
+}
+
 void HandleMotion( int x, int y, int mask ){}
 void HandleDestroy() { exit(0); }
 
@@ -261,11 +279,11 @@ void DrawFrame( void )
 	for( x = -1; x < 2; x++ ) for( y = -1; y < 2; y++ )
 	{
 		CNFGPenX = 10+x; CNFGPenY = 10+y;
-		CNFGDrawText( stbuf, 2 );
+		CNFGDrawText( stbuf, scale );
 	}
 	CNFGColor( 0xffffff );
 	CNFGPenX = 10; CNFGPenY = 10;
-	CNFGDrawText( stbuf, 2 );
+	CNFGDrawText( stbuf, scale );
 	OGUSleep( 1000 );
 }
 
@@ -461,7 +479,6 @@ int main( int argc, const char ** argv )
 	while(1)
 	{
 		iframeno++;
-		CNFGHandleInput();
 
 		CNFGClearFrame();
 		CNFGColor( 0xFFFFFF );
@@ -479,10 +496,22 @@ int main( int argc, const char ** argv )
 			LastFPSTime+=1;
 		}
 
-		SecToWait = .030 - ( ThisTime - LastFrameTime );
-		LastFrameTime += .030;
-		if( SecToWait > 0 )
-			OGUSleep( (int)( SecToWait * 1000000 ) );
+		if ( pingperiodseconds >= 0.1 )
+		{
+			for ( uint32_t i = 0; i < pingperiodseconds*10.0; i++ )
+			{
+				OGUSleep( 100000 );
+				if ( CNFGHandleInput() ) break;
+			}
+		}
+		else
+		{
+			CNFGHandleInput();
+			SecToWait = .030 - ( ThisTime - LastFrameTime );
+			LastFrameTime += .030;
+			if( SecToWait > 0 )
+				OGUSleep( (int)( SecToWait * 1000000 ) );
+		}
 	}
 
 	return(0);

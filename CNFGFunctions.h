@@ -10,8 +10,8 @@ extern "C" {
 #include <stdint.h>
 
 typedef struct {
-    short x, y; 
-} RDPoint; 
+    short x, y;
+} RDPoint;
 
 extern int CNFGPenX, CNFGPenY;
 extern uint32_t CNFGBGColor;
@@ -36,7 +36,7 @@ void CNFGSwapBuffers();
 void CNFGGetDimensions( short * x, short * y );
 void CNFGSetup( const char * WindowName, int w, int h );
 void CNFGSetupFullscreen( const char * WindowName, int screen_number );
-void CNFGHandleInput();
+uint8_t CNFGHandleInput();
 
 
 //You must provide:
