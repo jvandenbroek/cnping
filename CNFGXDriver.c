@@ -208,7 +208,7 @@ void CNFGSetup( const char * WindowName, int w, int h )
 #endif
 }
 
-void CNFGHandleInput()
+uint8_t CNFGHandleInput()
 {
 	static int ButtonsDown;
 	XEvent report;
@@ -217,7 +217,8 @@ void CNFGHandleInput()
 	int r;
 	while( XPending( CNFGDisplay ) )
 	{
-		r=XNextEvent( CNFGDisplay, &report );
+		(void)XNextEvent( CNFGDisplay, &report );
+		r=XPending( CNFGDisplay );
 
 		bKeyDirection = 1;
 		switch  (report.type)
@@ -230,21 +231,23 @@ void CNFGHandleInput()
 			CNFGPixmap = XCreatePixmap( CNFGDisplay, CNFGWindow, CNFGWinAtt.width, CNFGWinAtt.height, CNFGWinAtt.depth );
 			if( CNFGGC ) XFreeGC( CNFGDisplay, CNFGGC );
 			CNFGGC = XCreateGC(CNFGDisplay, CNFGPixmap, 0, 0);
+			if ( !r ) return 1;
 			break;
 		case KeyRelease:
 			bKeyDirection = 0;
 		case KeyPress:
 			HandleKey( XLookupKeysym(&report.xkey, 0), bKeyDirection );
+			if ( !r ) return 1;
 			break;
 		case ButtonRelease:
 			bKeyDirection = 0;
 		case ButtonPress:
 			HandleButton( report.xbutton.x, report.xbutton.y, report.xbutton.button, bKeyDirection );
 			ButtonsDown = (ButtonsDown & (~(1<<report.xbutton.button))) | ( bKeyDirection << report.xbutton.button );
-
 			//Intentionall fall through -- we want to send a motion in event of a button as well.
 		case MotionNotify:
 			HandleMotion( report.xmotion.x, report.xmotion.y, ButtonsDown>>1 );
+			if ( !r ) return 1;
 			break;
 		case ClientMessage:
 			// Only subscribed to WM_DELETE_WINDOW, so just exit
@@ -255,10 +258,11 @@ void CNFGHandleInput()
 			break;
 		}
 	}
+	return 0;
 }
 
 
-void CNFGUpdateScreenWithBitmap( unsigned long * data, int w, int h )
+/*void CNFGUpdateScreenWithBitmap( unsigned long * data, int w, int h )
 {
 	static XImage *xi;
 	static int depth;
@@ -286,7 +290,7 @@ void CNFGUpdateScreenWithBitmap( unsigned long * data, int w, int h )
 	ls = lw * lh;
 
 	XPutImage(CNFGDisplay, CNFGWindow, CNFGWindowGC, xi, 0, 0, 0, 0, w, h );
-}
+}*/
 
 
 #ifdef CNFGOGL
