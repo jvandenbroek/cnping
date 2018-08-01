@@ -33,7 +33,7 @@ static void InternalHandleResize();
 
 #ifdef CNFGOGL
 #include <GL/gl.h>
-static HGLRC           hRC=NULL; 
+static HGLRC           hRC=NULL;
 static void InternalHandleResize() { }
 void CNFGSwapBuffers()
 {
@@ -158,7 +158,7 @@ void CNFGSetup( const char * name_of_window, int width, int height )
 		PFD_DOUBLEBUFFER,
 		PFD_TYPE_RGBA,
 		32,
-		0, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0,
 		0,
 		0,
 		0,
@@ -210,7 +210,7 @@ void CNFGSetup( const char * name_of_window, int width, int height )
 	InternalHandleResize();
 }
 
-void CNFGHandleInput()
+uint8_t CNFGHandleInput()
 {
 	int ldown = 0;
 
@@ -223,6 +223,7 @@ void CNFGHandleInput()
 		{
 		case WM_MOUSEMOVE:
 			HandleMotion( (msg.lParam & 0xFFFF), (msg.lParam>>16) & 0xFFFF, ( (msg.wParam & 0x01)?1:0) | ((msg.wParam & 0x02)?2:0) | ((msg.wParam & 0x10)?4:0) );
+			return 1;
 			break;
 		case WM_LBUTTONDOWN:	HandleButton( (msg.lParam & 0xFFFF), (msg.lParam>>16) & 0xFFFF, 1, 1 ); break;
 		case WM_RBUTTONDOWN:	HandleButton( (msg.lParam & 0xFFFF), (msg.lParam>>16) & 0xFFFF, 2, 1 ); break;
@@ -233,12 +234,14 @@ void CNFGHandleInput()
 		case WM_KEYDOWN:
 		case WM_KEYUP:
 			HandleKey( tolower( msg.wParam ), (msg.message==WM_KEYDOWN) );
+			return 1;
 			break;
 		default:
 			DispatchMessage(&msg);
 			break;
 		}
 	}
+	return 0;
 }
 
 #ifndef CNFGOGL

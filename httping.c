@@ -56,13 +56,29 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 			*eurl = 0;
 	}
 
+#ifdef WIN32
+	*socketptr = httpsock = WSASocket(AF_INET, SOCK_STREAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
+	{
+		//Setup windows socket for nonblocking io.
+		unsigned long iMode = 1;
+		ioctlsocket(httpsock, FIONBIO, &iMode);
+	}
+/*	{
+		int lttl = 0xff;
+		if (setsockopt(httpsock, IPPROTO_IP, IP_TTL, (const char*)&lttl, sizeof(lttl)) == SOCKET_ERROR)
+		{
+			printf( "Warning: No IP_TTL.\n" );
+		}
+	}*/
+#else
 	*socketptr = httpsock = socket(AF_INET, SOCK_STREAM, 0);
+#endif
 	if (httpsock < 0)
 	{
 		ERRM( "Error opening socket\n" );
+		exit (1);
 		return;
 	}
-
 	/* gethostbyname: get the server's DNS entry */
 	*getting_host_by_name = 1;
 	server = gethostbyname(hostname);
@@ -82,6 +98,7 @@ void DoHTTPing( const char * addy, double minperiod, int * seqnoptr, volatile do
 	if (connect(httpsock, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
 	{
 		ERRM( "%s: ERROR connecting\n", hostname );
+		exit ( 1 );
 		return;
 	}
 

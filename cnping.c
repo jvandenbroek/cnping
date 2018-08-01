@@ -28,20 +28,25 @@ unsigned frames = 0;
 unsigned long iframeno = 0;
 short screenx, screeny;
 const char * pinghost;
+const char * configfile;
 float GuiYScaleFactor;
 int GuiYscaleFactorIsConstant;
-
-uint8_t pattern[8];
+static int prev_x = 0;
+static int prev_y = 0;
+static float x_diff = 0;
+static uint8_t mousebutton = 0;
 static uint8_t scale = 2;
-
+static uint8_t buttonDown = 0;
+static uint8_t direction = 0;
 
 #define PINGCYCLEWIDTH 8192
 #define TIMEOUT 4
 
+uint8_t pattern[65535];
+uint8_t prevPayload[65535];
 double PingSendTimes[PINGCYCLEWIDTH];
 double PingRecvTimes[PINGCYCLEWIDTH];
 int current_cycle = 0;
-
 int ExtraPingSize;
 
 
@@ -66,7 +71,7 @@ void display(uint8_t *buf, int bytes)
 	double STime = PingSendTimes[reqid];
 	double LRTime = PingRecvTimes[reqid];
 
-	if( memcmp( buf+4, pattern, 8 ) != 0 ) return;
+	if( memcmp( buf+4, &pattern, 8 + ExtraPingSize ) != 0 ) return;
 	if( LRTime > STime ) return;
 	if( STime < 1 )  return;
 
@@ -82,7 +87,7 @@ int load_ping_packet( uint8_t * buffer, int bufflen )
 	buffer[2] = current_cycle >> 8;
 	buffer[3] = current_cycle >> 0;
 
-	memcpy( buffer+4, pattern, 8 );
+	memcpy( buffer+4, &pattern, 8 + ExtraPingSize);
 
 	if( ping_failed_to_send )
 	{
@@ -106,7 +111,7 @@ void * PingListen( void * r )
 
 void * PingSend( void * r )
 {
-	do_pinger( pinghost );
+	do_pinger();
 	printf( "Fault on ping.\n" );
 	exit( -1 );
 }
@@ -118,12 +123,12 @@ void HandleKey( int keycode, int bDown )
 		case 'q':
 			exit(0);
 			break;
-		case 45: // -
-		case 65453:
+		case '-':
+		case 65453: // - numpad
 			if (bDown && scale > 2) scale--;
 			break;
-		case 61: // +
-		case 65451:
+		case '+':
+		case 65451: // + numpad
 			if (bDown && scale < 10) scale++;
 			break;
 	}
@@ -133,16 +138,80 @@ void HandleButton( int x, int y, int button, int bDown )
 {
 	switch ( button )
 	{
+		case 1:
+		case 2: // scroll button
+			buttonDown = bDown;
+			break;
 		case 5: // wheel down
-			if (bDown && scale > 2) scale--;
+			if ( bDown )
+			{
+				if ( !buttonDown )
+				{
+					if ( scale > 2 )
+						scale--;
+				}
+				else if ( pingperiodseconds > 0.00015 )
+					pingperiodseconds -= 0.0001;
+			}
 			break;
 		case 4: // wheel up
-			if (bDown && scale < 10) scale++;
+			if ( bDown )
+			{
+				if ( !buttonDown )
+				{
+					if ( scale < 10 )
+						scale++;
+				}
+				else
+					pingperiodseconds += 0.0001;
+			}
 			break;
+	}
+	mousebutton = button;
+}
+
+void HandleMotion( int x, int y, int mask )
+{
+	if( mask )
+	{
+		switch ( mousebutton )
+		{
+			case 1:
+				if (prev_x == x) return;
+				x_diff += 0.1;
+				if (prev_x > x)
+				{
+					if ( direction == 0 )
+						x_diff = 0;
+					prev_x--;
+					if (pingperiodseconds > 0.0009)
+						pingperiodseconds -= ((pingperiodseconds * 0.001) * x_diff * x_diff);
+					direction = 1;
+				}
+				else if (prev_x < x)
+				{
+					prev_x++;
+					if ( direction == 1 )
+						x_diff = 0;
+					if (pingperiodseconds < 300)
+						pingperiodseconds += ((pingperiodseconds * 0.001) * x_diff * x_diff);
+					direction = 0;
+				}
+				else
+					x_diff = 0;
+				break;
+			case 2:
+				break;
+		}
+		prev_x = x;
+		prev_y = y;
+	}
+	else
+	{
+		x_diff = 0;
 	}
 }
 
-void HandleMotion( int x, int y, int mask ){}
 void HandleDestroy() { exit(0); }
 
 double GetGlobMaxPingTime( void )
@@ -273,7 +342,8 @@ void DrawFrame( void )
 		"Max : %5.2f ms\n"
 		"Avg : %5.2f ms\n"
 		"Std : %5.2f ms\n"
-		"Loss: %5.1f %%\n\n%s", last, mintime, maxtime, avg, stddev, loss, (ping_failed_to_send?"Could not send ping.\nIs target reachable?\nDo you have sock_raw to privileges?":"") );
+		"Loss: %5.1f %%\n"
+		"Int : %5.1f ms\n\n%s", last, mintime, maxtime, avg, stddev, loss, (pingperiodseconds*1000), (ping_failed_to_send?"Could not send ping.\nIs target reachable?\nDo you have sock_raw to privileges?":"") );
 
 	CNFGColor( 0x00 );
 	for( x = -1; x < 2; x++ ) for( y = -1; y < 2; y++ )
@@ -370,12 +440,6 @@ int main( int argc, const char ** argv )
 	ShowWindow (GetConsoleWindow(), SW_HIDE);
 #endif
 
-	srand( (int)(OGGetAbsoluteTime()*100000) );
-
-	for( i = 0; i < sizeof( pattern ); i++ )
-	{
-		pattern[i] = rand();
-	}
 	CNFGBGColor = 0x800000;
 	CNFGDialogColor = 0x444444;
 #ifdef WIN32
@@ -410,6 +474,7 @@ int main( int argc, const char ** argv )
 			//Parameter-based field.
 			switch( thisargv[1] )
 			{
+				case 'c': configfile = nextargv; break;
 				case 'h': pinghost = nextargv; break;
 				case 'p': pingperiodseconds = atof( nextargv ); break;
 				case 's': ExtraPingSize = atoi( nextargv ); break;
@@ -433,9 +498,16 @@ int main( int argc, const char ** argv )
 		}
 	}
 
+	srand( (int)(OGGetAbsoluteTime()*100000) );
+
+	for( i = 0; i < 8 + ExtraPingSize; i++ )
+	{
+		pattern[i] = rand();
+	}
+
 	if( title[0] == 0 )
 	{
-		sprintf( title, "%s - %d ms - cnping", pinghost, (int)(pingperiodseconds*1000) );
+		sprintf( title, "%s - size: %d - cnping", pinghost, 12 + ExtraPingSize );
 	}
 
 	if( GuiYScaleFactor > 0 )
@@ -454,6 +526,7 @@ int main( int argc, const char ** argv )
 		ERRM( "Need at least a host address to ping.\n" );
 		#else
 		ERRM( "Usage: cnping [host] [period] [extra size] [y-axis scaling] [window title]\n"
+			"   (-c) [config file]          -- file to store default settings (default ~/.cnping)\n"
 			"   (-h) [host]                 -- domain, IP address of ping target for ICMP or http host, i.e. http://google.com\n"
 			"   (-p) [period]               -- period in seconds (optional), default 0.02 \n"
 			"   (-s) [extra size]           -- ping packet extra size (above 12), optional, default = 0 \n"
@@ -462,15 +535,20 @@ int main( int argc, const char ** argv )
 		#endif
 		return -1;
 	}
+	if ( configfile == NULL )
+		configfile = "~/.cnping";
+
 
 	CNFGSetup( title, 320, 155 );
 
 	if( memcmp( pinghost, "http://", 7 ) == 0 )
 	{
+		check_hostname(pinghost+7);
 		StartHTTPing( pinghost+7, pingperiodseconds );
 	}
 	else
 	{
+		check_hostname(pinghost);
 		ping_setup();
 		OGCreateThread( PingSend, 0 );
 		OGCreateThread( PingListen, 0 );
@@ -489,7 +567,7 @@ int main( int argc, const char ** argv )
 		frames++;
 		CNFGSwapBuffers();
 
-		if ( pingperiodseconds <= .030 )
+		if ( pingperiodseconds <= .050 )
 		{
 			ThisTime = OGGetAbsoluteTime();
 			if( ThisTime > LastFPSTime + 1 )
@@ -505,11 +583,10 @@ int main( int argc, const char ** argv )
 		}
 		else
 		{
-			for ( int i = 0; i < pingperiodseconds * 10.0; i++ )
-			{
-				OGUSleep( pingperiodseconds < .1 ? (int)(pingperiodseconds * 1000000.0) : 100000);
-				if ( CNFGHandleInput() ) break;
-			}
+			while ( ! notify && ! CNFGHandleInput())
+				OGUSleep( 25000 );
+
+			notify = 0;
 		}
 	}
 

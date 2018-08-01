@@ -82,7 +82,8 @@ void * PingListen( void * r )
 
 void * PingSend( void * r )
 {
-	do_pinger( pinghost );
+	check_hostname(pinghost);
+	do_pinger();
 	printf( "Fault on ping.\n" );
 	exit( -1 );
 }

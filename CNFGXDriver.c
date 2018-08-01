@@ -210,17 +210,15 @@ void CNFGSetup( const char * WindowName, int w, int h )
 
 uint8_t CNFGHandleInput()
 {
-	static int ButtonsDown;
-	XEvent report;
-
-	int bKeyDirection = 1;
-	int r;
 	while( XPending( CNFGDisplay ) )
 	{
+		static int ButtonsDown;
+		XEvent report;
+		int r;
 		(void)XNextEvent( CNFGDisplay, &report );
 		r=XPending( CNFGDisplay );
 
-		bKeyDirection = 1;
+		int bKeyDirection = 1;
 		switch  (report.type)
 		{
 		case NoExpose:

@@ -1,6 +1,7 @@
 all : cnping searchnet cnping-mousey
 
-CFLAGS:=$(CFLAGS) -g -Os -I/opt/X11/include -Wall
+#CFLAGS:=$(CFLAGS) -g -Os -I/opt/X11/include -Wall
+CFLAGS:=$(CFLAGS) -g  -I/opt/X11/include -Wall
 CXXFLAGS:=$(CFLAGS)
 LDFLAGS:=-g -L/opt/X11/lib/
 

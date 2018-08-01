@@ -64,6 +64,8 @@ struct icmphdr
 
 float pingperiodseconds;
 int precise_ping;
+uint8_t notify;
+static struct hostent *hname = NULL;
 
 #define PACKETSIZE	65536
 
@@ -204,8 +206,15 @@ void ping(struct sockaddr_in *addr )
 		{
 			if( pingperiodseconds > 0 )
 			{
-				uint32_t dlw = 1000000.0*pingperiodseconds;
-				OGUSleep( dlw );
+				if (pingperiodseconds < 1)
+					OGUSleep( 1000000.0 * pingperiodseconds );
+				else
+				{
+					for ( int i = 1; i <= pingperiodseconds; i++ )
+						OGUSleep( 1000000.0 );
+					OGUSleep( 1000000.0 * (float)(pingperiodseconds - (uint32_t)pingperiodseconds) );
+				}
+				notify = 1;
 			}
 		}
 	} 	while( pingperiodseconds >= 0 );
@@ -256,11 +265,34 @@ void ping_setup()
 
 }
 
-void do_pinger( const char * strhost )
+void check_hostname ( const char *hostname )
 {
-	struct hostent *hname;
-	hname = gethostbyname(strhost);
+	hname = gethostbyname(hostname);
+	if (hname == NULL)
+	{
+		switch (h_errno)
+		{
+			case HOST_NOT_FOUND:
+				ERRM("Error: The specified host is unknown.\n");
+				break;
+			case NO_DATA:
+				ERRM("Error: The requested name is valid but does not have an IP address.\n");
+				break;
+			case NO_RECOVERY:
+				ERRM("Error: A nonrecoverable name server error occurred.\n");
+				break;
+			case TRY_AGAIN:
+				ERRM("Error: A temporary error occurred on an authoritative name server.\nTry again later..\n");
+				break;
+			default:
+				ERRM("Error: An unknown error occured.\n");
+		}
+		exit(h_errno);
+	}
+}
 
+void do_pinger()
+{
 	memset(&psaddr, 0, sizeof(psaddr));
 	psaddr.sin_family = hname->h_addrtype;
 	psaddr.sin_port = 0;
